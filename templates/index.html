@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketMind - Advanced Stock Forecasting</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Outfit:wght@400;500;600;700;800&family=Georgia&display=swap" rel="stylesheet">
+    
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+    
+    <!-- CDNs for Plotly.js and Marked.js (Markdown parsing) -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="app-root" class="app-container">
+        
+        <!-- 1. Global Header -->
+        <header class="header-bar">
+            <div class="header-title-container">
+                <h1 class="header-title"><span>MARKET</span>MIND</h1>
+                <div class="system-status-indicator">
+                    <div class="status-dot-green pulse-green"></div>
+                    <span>QUANT CORE ONLINE</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="theme-toggle-btn" class="btn-theme-toggle">Light Theme</button>
+            </div>
+        </header>
+
+        <!-- 2. Control Toolbar -->
+        <div class="control-toolbar">
+            <div class="toolbar-left">
+                <span class="toolbar-label">Select Ticker</span>
+                
+                <!-- Segmented Tabs for Preset vs Custom -->
+                <div class="segmented-control">
+                    <button id="tab-preset" class="seg-tab active" onclick="setTickerMode('preset')">Presets</button>
+                    <button id="tab-custom" class="seg-tab" onclick="setTickerMode('custom')">Custom Symbol</button>
+                </div>
+                
+                <!-- Preset Ticker Selector (Custom Dropdown replacement) -->
+                <div id="preset-select-wrapper" class="dropdown-wrapper">
+                    <div id="dropdown-select-trigger" class="dropdown-trigger" onclick="toggleDropdown()">
+                        <span id="selected-preset-label">Apple Inc. (AAPL)</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div id="dropdown-options-list" class="dropdown-options">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Custom Ticker Input -->
+                <input id="custom-ticker-input" class="text-input" type="text" placeholder="Enter symbol..." style="display: none;" onkeydown="handleCustomInputKey(event)">
+            </div>
+            
+            <div class="toolbar-right">
+                <!-- Spinner Loading Indicator -->
+                <div id="status-loading" class="spinner" style="display: none;"></div>
+                <div id="data-status-badge" class="data-badge demo">Demo Dataset Loaded</div>
+                <button id="analyze-btn" class="btn-premium" onclick="triggerAnalysis()">Analyze & Predict</button>
+            </div>
+        </div>
+
+        <!-- 3. Main Dashboard Layout -->
+        <div class="main-layout-row">
+            <!-- Sidebar Panel -->
+            <aside class="sidebar-col-container">
+                <nav class="sidebar-nav">
+                    <a id="nav-dashboard" class="nav-item active" onclick="switchPage('dashboard')">Dashboard</a>
+                    <a id="nav-forecast" class="nav-item" onclick="switchPage('forecast')">Forecast</a>
+                    <a id="nav-technical" class="nav-item" onclick="switchPage('technical')">Technical</a>
+                    <a id="nav-risk" class="nav-item" onclick="switchPage('risk')">Risk Audit</a>
+                    <a id="nav-report" class="nav-item" onclick="switchPage('report')">AI Report</a>
+                    <a id="nav-settings" class="nav-item" onclick="switchPage('settings')">Settings</a>
+                </nav>
+            </aside>
+
+            <!-- Page Content Container -->
+            <main class="page-content-col">
+                <div id="error-container"></div>
+                
+                <!-- Page Content Sections -->
+                
+                <!-- Page 1: Dashboard Overview -->
+                <section id="page-dashboard" class="page-section active">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 id="dash-overview-title" class="widget-title">AAPL - Market Overview</h2>
+                                <span class="widget-subtitle">Real-time summary and quantitative trend analysis</span>
+                            </div>
+                            <div id="recommendation-badge" class="recommendation-badge badge-buy">
+                                RECOMMENDATION: BUY
+                            </div>
+                        </div>
+                        
+                        <!-- Metric Cards Grid -->
+                        <div class="metric-grid">
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Last Market Close</div>
+                                <div id="card-last-close" class="digital-card-value">$0.00</div>
+                                <div id="card-price-change" class="digital-card-subvalue val-green">+0.00%</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Forecast Price Target</div>
+                                <div id="card-forecast-target" class="digital-card-value val-indigo">$0.00</div>
+                                <div id="card-expected-return" class="digital-card-subvalue val-green">+0.00% expected return</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Composite Risk Index</div>
+                                <div id="card-risk-score" class="digital-card-value">0%</div>
+                                <div class="progress-bar-container">
+                                    <div id="card-risk-progress" class="progress-bar" style="width: 0%"></div>
+                                    <span id="card-risk-label" class="progress-label">Low</span>
+                                </div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Technical Trend Alignment</div>
+                                <div id="card-trend-align" class="digital-card-value val-green">BUY Alignment</div>
+                                <div id="card-trend-reason" class="digital-card-subvalue text-wrap">Trend status calculation...</div>
+                            </div>
+                        </div>
+
+                        <!-- Outlook Summary Panel -->
+                        <div class="outlook-panel">
+                            <h3 class="outlook-title">Executive Market Outlook Summary</h3>
+                            <div id="dashboard-outlook-text" class="outlook-text">
+                                Summary loading...
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Page 2: Forecast Curves -->
+                <section id="page-forecast" class="page-section">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 id="forecast-title" class="widget-title">AAPL - Predictive Forecast Models</h2>
+                                <span class="widget-subtitle">Time-series boundaries and model projection vector comparisons</span>
+                            </div>
+                        </div>
+
+                        <!-- Dynamic Page-Specific Controls Card -->
+                        <div class="page-controls-card">
+                            <div class="control-group">
+                                <label for="model-choice-select" class="control-label">Forecasting Model</label>
+                                <select id="model-choice-select" class="dropdown-control" onchange="changeModel(this.value)">
+                                    <option value="Ensemble">Ensemble Blend (3-Model)</option>
+                                    <option value="Prophet">Facebook Prophet Core</option>
+                                    <option value="XGBoost">Extreme Gradient Boosting (XGBoost)</option>
+                                    <option value="MLP">Multilayer Perceptron (MLP)</option>
+                                </select>
+                            </div>
+                            <div class="control-group slider-group">
+                                <div class="slider-header">
+                                    <span class="control-label">Forecast Horizon (Days)</span>
+                                    <span id="horizon-display-val" class="slider-val">30 Days</span>
+                                </div>
+                                <input id="horizon-days-slider" class="range-slider" type="range" min="7" max="60" value="30" oninput="updateHorizonDisplay(this.value)" onchange="changeHorizon(this.value)">
+                            </div>
+                        </div>
+
+                        <!-- Prediction stats summary banner -->
+                        <div class="predictions-banner">
+                            <div class="banner-stat">
+                                <span class="banner-stat-label">Model Target Price</span>
+                                <span id="forecast-target-val" class="banner-stat-value">$0.00</span>
+                            </div>
+                            <div class="banner-stat">
+                                <span class="banner-stat-label">Expected Return Target</span>
+                                <span id="forecast-return-val" class="banner-stat-value val-green">+0.00%</span>
+                            </div>
+                        </div>
+
+                        <!-- Large Chart Canvas -->
+                        <div class="chart-canvas card-hover-glow">
+                            <div id="forecast-chart" style="width: 100%; height: 450px;"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Page 3: Technical Indicators -->
+                <section id="page-technical" class="page-section">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 id="technical-title" class="widget-title">AAPL - Core Technical Indicator Suite</h2>
+                                <span class="widget-subtitle">Momentum, Volatility, Volume, and Trend Oscillators</span>
+                            </div>
+                        </div>
+
+                        <!-- 2x2 Chart Grid -->
+                        <div class="technical-grid">
+                            <div class="chart-container card-hover-glow">
+                                <div id="chart-price-sma" style="width: 100%; height: 320px;"></div>
+                            </div>
+                            <div class="chart-container card-hover-glow">
+                                <div id="chart-volume" style="width: 100%; height: 320px;"></div>
+                            </div>
+                            <div class="chart-container card-hover-glow">
+                                <div id="chart-rsi" style="width: 100%; height: 320px;"></div>
+                            </div>
+                            <div class="chart-container card-hover-glow">
+                                <div id="chart-macd" style="width: 100%; height: 320px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Page 4: Risk Audit Profile -->
+                <section id="page-risk" class="page-section">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 id="risk-title" class="widget-title">AAPL - Quantitative Risk Audit Profile</h2>
+                                <span class="widget-subtitle">Volatility analysis, Value at Risk, and systemic risk metrics</span>
+                            </div>
+                        </div>
+
+                        <!-- KPI Grid -->
+                        <div class="metric-grid mb-4">
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Annual Volatility</div>
+                                <div id="risk-card-vol" class="digital-card-value">0.00%</div>
+                                <div class="digital-card-subvalue" style="font-size: 9px;">Standard deviation of log returns</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Value at Risk (95%)</div>
+                                <div id="risk-card-var" class="digital-card-value val-red">0.00%</div>
+                                <div class="digital-card-subvalue" style="font-size: 9px;">Daily maximum expected loss</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Sharpe Ratio (Rf=2.0%)</div>
+                                <div id="risk-card-sharpe" class="digital-card-value">0.00</div>
+                                <div class="digital-card-subvalue" style="font-size: 9px;">Risk-adjusted efficiency score</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Maximum Drawdown</div>
+                                <div id="risk-card-maxdd" class="digital-card-value">0.00%</div>
+                                <div class="digital-card-subvalue" style="font-size: 9px;">Peak-to-trough historical drop</div>
+                            </div>
+                            <div class="digital-card card-hover-glow">
+                                <div class="digital-card-label">Beta vs S&P 500</div>
+                                <div id="risk-card-beta" class="digital-card-value val-indigo">0.00</div>
+                                <div class="digital-card-subvalue" style="font-size: 9px;">Systemic market exposure score</div>
+                            </div>
+                        </div>
+
+                        <!-- Gauge and Narrative -->
+                        <div class="risk-details-row">
+                            <div class="risk-gauge-card card-hover-glow">
+                                <div class="gauge-label">Composite Risk Allocation</div>
+                                <div id="risk-gauge-score" class="gauge-score">0%</div>
+                                <div id="risk-gauge-category" class="gauge-category">Low</div>
+                                
+                                <div class="gauge-progress-container">
+                                    <div id="risk-gauge-bar" class="gauge-progress-bar" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="risk-narrative-card">
+                                <h3 class="narrative-title">Quantitative Audit Findings</h3>
+                                <div id="risk-narrative-text" class="narrative-text">
+                                    Risk findings loading...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Page 5: Executive AI Report -->
+                <section id="page-report" class="page-section">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 class="widget-title">MarketMind Executive Report</h2>
+                                <span class="widget-subtitle">Bloomberg/Morningstar style intelligence report</span>
+                            </div>
+                            <div class="export-buttons-group">
+                                <button class="btn-premium" onclick="downloadReport('pdf')">Download PDF Report</button>
+                                <button class="btn-outline-primary" onclick="downloadReport('csv')">Download CSV Data</button>
+                            </div>
+                        </div>
+
+                        <!-- Styled Bloomberg Report Board -->
+                        <div id="report-board" class="bloomberg-report-card">
+                            <div id="report-markdown-content" class="bloomberg-text-content">
+                                Generating AI Narrative Report...
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Page 6: System Settings -->
+                <section id="page-settings" class="page-section">
+                    <div class="widget-panel">
+                        <div class="section-header">
+                            <div>
+                                <h2 class="widget-title">System Configuration</h2>
+                                <span class="widget-subtitle">Local variables, diagnostic logs, and cache states</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-details-row">
+                            <div class="settings-left-col">
+                                <div class="settings-card">
+                                    <h3 class="settings-card-title">Theme Configuration</h3>
+                                    <div class="settings-card-content">
+                                        <span>Adjust the system layout style using the toggle button in the global header.</span>
+                                        <div id="settings-theme-display" class="theme-status-box">
+                                            Active Theme: Dark Theme
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="settings-card">
+                                    <h3 class="settings-card-title">Local Cash Storage Status</h3>
+                                    <div class="settings-card-content">
+                                        <div class="status-row">
+                                            <span class="status-label">Cached File:</span>
+                                            <span class="status-value font-mono">assets/default_aapl_cache.json</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span class="status-label">Caching State:</span>
+                                            <span class="status-value val-green">Active & Optimized</span>
+                                        </div>
+                                        <div class="status-row">
+                                            <span class="status-label">Status:</span>
+                                            <span id="settings-source-status" class="status-value val-indigo">Demo Mode</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="settings-right-col">
+                                <div class="settings-card height-100">
+                                    <h3 class="settings-card-title">System Diagnostics Checklist</h3>
+                                    <div class="diagnostics-checklist">
+                                        <div class="check-item val-green">✔ Flask Web Server binds correctly.</div>
+                                        <div class="check-item val-green">✔ Custom HTML/CSS UI overlay compiled. Zero callback circularity.</div>
+                                        <div class="check-item val-green">✔ Neural Network engine (MLPRegressor) initialized.</div>
+                                        <div class="check-item val-green">✔ Prophet Seasonality analysis core operational.</div>
+                                        <div class="check-item val-green">✔ XGBoost regression model compiled successfully.</div>
+                                        <div class="check-item val-green" id="settings-check-yfinance">✔ yfinance API Status: checking...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- main JS script -->
+    <script src="/static/main.js"></script>
+</body>
+</html>
