@@ -1,5 +1,4 @@
-dash>=2.15.0
-dash-bootstrap-components>=1.5.0
+flask>=3.0.0
 plotly>=5.18.0
 prophet>=1.1.5
 xgboost>=2.0.0
